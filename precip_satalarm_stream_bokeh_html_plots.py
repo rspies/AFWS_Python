@@ -1,8 +1,10 @@
 # created by Ryan Spies 
-# 7/18/2017
+# 9/18/2017
 # Python 2.7
 # Bokeh updated to 0.12.6
-# Description: generate an interactive plot
+# Description: generate an interactive bokeh plot with streamflow line and rainfall alert bar overlays. 
+# Uses conditional saturation calculations to produce saturation based threshold values.
+# Key Features: Pandas dataframe calculations (drop, subract, isin); bokeh plot options
 # Output to html file for viewing interactive plot
 # Pandas Resample function: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.resample.html
 # Pandas Rolling function: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.rolling.html

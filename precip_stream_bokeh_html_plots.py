@@ -2,7 +2,9 @@
 # 7/18/2017
 # Python 2.7
 # Bokeh updated to 0.12.6
-# Description: generate an interactive plot
+# Description: generate an interactive bokeh grid plot with streamflow and rainfall rolling accumulation line plots. 
+# Uses rolling window time duration accumulation calculation and data binning.
+# Key Features: Pandas dataframe calculations (drop, subract, isin); bokeh plot options
 # Output to html file for viewing interactive plot
 # Pandas Resample function: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.resample.html
 # Pandas Rolling function: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.rolling.html

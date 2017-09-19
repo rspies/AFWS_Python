@@ -2,7 +2,7 @@
 # 7/18/2017
 # Python 2.7
 # Bokeh updated to 0.12.6
-# Description: generate an interactive plot
+# Description: generate an interactive bokeh streamflow plot
 # Output to html file for viewing interactive plot
 
 from bokeh.plotting import Figure, output_file, save #importing figure (lower case f) results in increasing file size with each plot

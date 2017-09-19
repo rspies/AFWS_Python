@@ -1,7 +1,7 @@
 # created by Ryan Spies 
 # 7/20/2017
 # Python 2.7
-# Bin precipiation data for basin mean areal precip
+# Description: Module to bin precipitation data for station calculations
 
 import pandas as pd
 
