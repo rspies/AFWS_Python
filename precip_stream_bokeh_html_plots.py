@@ -14,7 +14,7 @@ from bokeh.models import Range1d, DatetimeTickFormatter, HoverTool, BoxAnnotatio
 from bkcharts import Bar, Area
 from bokeh.models.glyphs import VBar
 from bokeh.layouts import column, gridplot
-from bokeh.palettes import Set1
+from bokeh.palettes import Category20
 from bokeh.models import Label
 
 import os
@@ -28,43 +28,63 @@ import precip_bin_data ## my module for binning precip
 os.chdir("..")
 maindir = os.getcwd() + os.sep + 'data' + os.sep
 ################## User Input ########################
-max_date = max_date = datetime.datetime(2013,9,13); min_date = datetime.datetime(2013,9,11,12) #datetime.datetime(2017,7,1); min_date = datetime.datetime(2013,1,1)#
-plot_type = 'rolling' # choices: 'interval' or 'rolling'
+min_date = datetime.datetime(1999,1,1,12); max_date = datetime.datetime(2010,1,1,12)  #datetime.datetime(2017,7,1); min_date = datetime.datetime(2013,1,1)#
+plot_type = 'rolling'   # choices: 'interval' or 'rolling'
 basin = 'JamesCreek'
-flow_stg = 'stage' # choices: 'stream' for streamflow or 'stage' for gauge height
-roll_wins = [60] # window for rolling accumulation (minutes) # 10,60,120,180,360,720,1440,4320 ##,120,180,360,720,1440,4320
-pbin = '10' # precip bin time in minutes
-if plot_type == 'interval':
-    thresh ={'10':0.5,'60':1.0,'120':3.0,'360':5.0,'1440':5.0,'4320':10.0} # '30':0.75,'720':5.5,'1440':6.0
+flow_stg = 'flow'       # choices: 'flow' for streamflow or 'stage' for gauge height
+roll_wins = [60,120,180,360,720,1440,4320] # window for rolling accumulation (minutes) # 10,60,120,180,360,720,1440,4320 ##,120,180,360,720,1440,4320
+pbin = '20'             # precip bin time in minutes (larger bin keeps file sizes smaller when looking at longer periods!!!)
+prec_stations = ['4180','4190','4220','4270','4710','4770','4850']
+
 if plot_type == 'rolling':
     thresh ={'10':0.5, '30':0.75,'60':1.0,'120':1.5,'180':2.0,'360':3.0,'720':4.0,'1440':5.0,'4320':10.0}
 ######################################################
 udfcd_thresh ={'10':0.5,'60':1.0,'120':3.0,'360':5.0,'1440':5.0,'4320':10.0,'180':4.0,'720':5.0}
-jc_stg_thresh = {'bankfull':0.88,'minor':3.0,'moderate':3.9,'major':5.7}
-precip_names = {'4180':'Gold Lk','4850':'Porp Mt','4190':'Slaught','4220':'Flings','4270':'Cann Mt','4710':'Ward','4770':'Cal Rnc'}
+precip_names = {'4180':'Gold Lk','4850':'Porp Mt','4190':'Slaught','4220':'Flings','4270':'Cann Mt','4710':'Ward','4770':'Cal Rnc',
+                '4150':'Gold Hl','4240':'Sunset','4160':'Sunshine','4230':'Gold Ag'}
+
+### STREAMFLOW DATA ###    
+## Define the steamflow/stage data file 
+input_dir = maindir + os.sep + 'James_Creek_streamflow_data' + os.sep
+if flow_stg == 'flow':
+    jc_stg_thresh = {'bankfull':300,'minor':1252,'moderate':1785,'major':3000, 'ptop':3500, 'max_Q':3500} #obtained from Kate Malers email 9/26/17
+if flow_stg == 'stage':
+    jc_stg_thresh = {'bankfull':0.88,'minor':3.0,'moderate':3.9,'major':5.7, 'ptop':12, 'max_Q':8} ## NOTE! These are for post 2013 JC gauge rating (see rating diff spreadsheet)
+
+### Check if directory stucture exists for output and create if needed
+output_dir = maindir + os.sep + 'interactive_plots' + os.sep + flow_stg + '_precip' + os.sep
+if os.path.isdir(output_dir + str(min_date.date()) + '_' + str(max_date.date())) == False:
+    os.makedirs(output_dir + str(min_date.date()) + '_' + str(max_date.date()))
 
 for roll_win in roll_wins:
-    count = 0
     ### STREAMFLOW DATA ###    
     ## Define the steamflow/stage data file 
-    input_dir = maindir + os.sep + 'James_Creek_streamflow_data' 
-    if flow_stg == 'stream':
-        input_file = input_dir + os.sep + 'onerain_JamesCreek_Jamestown_10017_Flow_rate_7a.txt'
+    input_dir = maindir + os.sep + 'James_Creek_streamflow_data' + os.sep
+    if flow_stg == 'flow':
+        input_file = 'merge_onerain_JamesCreek_Jamestown_flow_1999_2017.csv'
         ptitle = ' Inst Streamflow (CFS)'; yax = 'Streamflow (CFSD)'; units = 'cfs'
     if flow_stg == 'stage':
         if basin == 'JamesCreek':
-            input_file = input_dir + os.sep + 'ALERT2_sensor_7_15861_2_EventData.csv'
+            input_file = 'ALERT2_sensor_7_15861_2_EventData.csv'
         if basin == 'Rowena':
-            input_file = input_dir + os.sep + 'onerain_Rowena_4430_Stage_4433.txt'
+            input_file = 'onerain_Rowena_4430_Stage_4433.txt'
         if basin == 'LowerLefthand':
-            input_file = input_dir + os.sep + 'onerain_Lower_Lefthand_10018_Stage_7.txt'
+            input_file = 'onerain_Lower_Lefthand_10018_Stage_7.txt'
         ptitle = ' Inst Stream Stage (FT)'; yax = 'Stage (FT)'; units = 'ft'
     
-    print input_file  
-    site_num = input_file.split('_')[-4]
-    read_file = open(input_file, 'r')
-    test = pd.read_csv(read_file,sep=',',skiprows=1,
-                usecols=[0,2],parse_dates=['date'],names=['date', 'OBS'])
+    print input_file
+    ### check if pickled df already exists
+    if input_file[:-4] in os.listdir(maindir + 'pickle_data' + os.sep + flow_stg):
+        print('Found pickle df - importing...')
+        test = pd.read_pickle(maindir + 'pickle_data' + os.sep + flow_stg + os.sep + input_file[:-4])
+    else:
+        print('Reading flow/stage file...')
+        read_file = open(input_dir + input_file, 'r')
+        print('Parsing flow/stage file...')
+        test = pd.read_csv(read_file,sep=',',skiprows=1, na_filter=True,
+                    usecols=[0,2],parse_dates=['date'],names=['date', 'OBS'])
+        read_file.close()
+    test.dropna(inplace=True)    
     
     # remove bad data points (JC above 8ft stage)          
     if flow_stg == 'stage':
@@ -110,9 +130,9 @@ for roll_win in roll_wins:
     if plot_type != 'log':
         p1 = Figure(
            tools="xwheel_zoom,xpan,xbox_zoom,reset,resize,save",
-           y_range = DataRange1d(start=0,end=8.5), x_range = Range1d(start=min_date,end=max_date),
+           y_range = DataRange1d(start=0,end=max_Q), x_range = Range1d(start=min_date,end=max_date),
            title=basin + ptitle, x_axis_type="datetime",
-           x_axis_label='Date', y_axis_label=yax,plot_width=1300, plot_height=300, lod_factor=20, lod_threshold=50
+           x_axis_label='Date', y_axis_label=yax,plot_width=1300, plot_height=350, lod_factor=20, lod_threshold=50
         )
     elif plot_type == 'log':
         p1 = Figure(
@@ -126,20 +146,20 @@ for roll_win in roll_wins:
     #p1.background_fill_alpha = 0.2
     
     ### OneRain default JC stage thresholds
-    stg_box_major = BoxAnnotation(top=12, bottom=jc_stg_thresh['major'], fill_color='purple', fill_alpha=0.2)
+    stg_box_major = BoxAnnotation(top=jc_stg_thresh['ptop'], bottom=jc_stg_thresh['major'], fill_color='purple', fill_alpha=0.25)
     p1.add_layout(stg_box_major)
-    stg_box_mod = BoxAnnotation(top=jc_stg_thresh['major'], bottom=jc_stg_thresh['moderate'], fill_color='red', fill_alpha=0.2)
+    stg_box_mod = BoxAnnotation(top=jc_stg_thresh['major'], bottom=jc_stg_thresh['moderate'], fill_color='red', fill_alpha=0.25)
     p1.add_layout(stg_box_mod)
-    stg_box_minor = BoxAnnotation(top=jc_stg_thresh['moderate'], bottom=jc_stg_thresh['minor'], fill_color='orange', fill_alpha=0.2)
+    stg_box_minor = BoxAnnotation(top=jc_stg_thresh['moderate'], bottom=jc_stg_thresh['minor'], fill_color='orange', fill_alpha=0.25)
     p1.add_layout(stg_box_minor)
-    stg_box_bf = BoxAnnotation(top=jc_stg_thresh['minor'], bottom=jc_stg_thresh['bankfull'], fill_color='yellow', fill_alpha=0.05)
+    stg_box_bf = BoxAnnotation(top=jc_stg_thresh['minor'], bottom=jc_stg_thresh['bankfull'], fill_color='yellow', fill_alpha=0.15)
     p1.add_layout(stg_box_bf)
     
     ### Add text annotation for the flood levels
-    text_bf = Label(x=min_date, y=jc_stg_thresh['bankfull'], text="Bankfull",render_mode='canvas',level='glyph',x_offset=10)
-    text_min = Label(x=min_date, y=jc_stg_thresh['minor'], text="Minor",render_mode='canvas',level='glyph',x_offset=10)
-    text_mod = Label(x=min_date, y=jc_stg_thresh['moderate'], text="Moderate",render_mode='canvas',level='glyph',x_offset=10)
-    text_maj = Label(x=min_date, y=jc_stg_thresh['major'], text="Major",render_mode='canvas',level='glyph',x_offset=10)
+    text_bf = Label(x=95, y=jc_stg_thresh['bankfull'], x_units='screen', y_units='data', text="Bankfull",render_mode='canvas',level='glyph',x_offset=10)
+    text_min = Label(x=95, y=jc_stg_thresh['minor'], x_units='screen', y_units='data', text="Minor",render_mode='canvas',level='glyph',x_offset=10)
+    text_mod = Label(x=95, y=jc_stg_thresh['moderate'], x_units='screen', y_units='data', text="Moderate",render_mode='canvas',level='glyph',x_offset=10)
+    text_maj = Label(x=95, y=jc_stg_thresh['major'], x_units='screen', y_units='data', text="Major",render_mode='canvas',level='glyph',x_offset=10)
     p1.add_layout(text_bf); p1.add_layout(text_min); p1.add_layout(text_mod); p1.add_layout(text_maj)
 
     
@@ -151,9 +171,14 @@ for roll_win in roll_wins:
     #p.line(x, y2, legend="y=10^x^2", line_color="orange", line_dash="4 4")
     
     # add plot for estimated high water mark
-    date_hw = [datetime.datetime(2013,9,12,11),datetime.datetime(2013,9,12,23)]
-    stage_hw = [8.0,8.0]
-    p1.line(date_hw, stage_hw, legend="Estimated High Water", line_width=3, line_dash = 'dashed', line_color = "green")
+    if flow_stg == 'stage' and basin == 'JamesCreek':
+        date_hw = [datetime.datetime(2013,9,12,11),datetime.datetime(2013,9,12,23)]
+        stage_hw = [8.0,8.0]
+    if flow_stg == 'flow' and basin == 'JamesCreek':
+        date_hw = [datetime.datetime(2013,9,12,11),datetime.datetime(2013,9,12,23)]
+        stage_hw = [3300,3300]  # estimate obtained from Memo: CDOT/CWCB Hydrology Investigation Phase One – 2013 Flood Peak Flow Determinations
+    p1.line(date_hw, stage_hw, legend="JT Estimated Peak " + flow_stg.title(), line_width=3, line_dash = 'dashed', line_color = "blue")
+
     
     # hover tool
     hover = HoverTool(tooltips=[
@@ -184,7 +209,9 @@ for roll_win in roll_wins:
     
     ###################################################################################
     #### PRECIP DATA #####
-    input_dir = maindir + os.sep + 'James_Creek_precip_sites' 
+    input_dir = maindir + os.sep + 'James_Creek_precip_sites_historical'
+    header=1                        # precip header rows in data file to skip
+    usecols=[0,2]                   # precip columns to read data (date,variable)
     ##### create a new plot instance
     if plot_type == 'interval':
         title_str = pbin + '-Minute Binned Precip (in)'
@@ -200,11 +227,17 @@ for roll_win in roll_wins:
                tools="xwheel_zoom,xpan,xbox_zoom,reset,resize,save",
                y_range = Range1d(start=0,end=thresh_plot_ax), x_range=p1.x_range,
                title=title_str, x_axis_type="datetime",
-               x_axis_label='Date', y_axis_label='Precipitation (in)',plot_width=1300, plot_height=300, lod_factor=30, lod_threshold=50
+               x_axis_label='Date', y_axis_label='Precipitation (in)',plot_width=1300, plot_height=350, lod_factor=30, lod_threshold=50
             )
             
     #    p2.background_fill_color = "grey"
     #    p2.background_fill_alpha = 0.2
+    ### axis font size 
+    p2.title.text_font_size = "15pt"
+    p2.xaxis.axis_label_text_font_size = "15pt"
+    p2.xaxis.major_label_text_font_size = "12pt"
+    p2.yaxis.axis_label_text_font_size = "15pt"
+    p2.yaxis.major_label_text_font_size = "12pt"
 
     ### add interval bounding boxes for user-input precip thresholds    
     if plot_type == 'interval':
@@ -218,67 +251,78 @@ for roll_win in roll_wins:
     p2.add_layout(udfcd_box)
     
     ### Add text annotation for current rainfall alarms
-    text_rain = Label(x=min_date, y=udfcd_thresh[str(roll_win)], text="UDFCD Alarm",render_mode='canvas',level='glyph',x_offset=10,text_font_size='10pt')
+    text_rain = Label(x=95, y=udfcd_thresh[str(roll_win)], x_units='screen', y_units='data', text="UDFCD Alarm",render_mode='canvas',level='glyph',x_offset=10,text_font_size='10pt')
     p2.add_layout(text_rain)
     if thresh[str(roll_win)] != udfcd_thresh[str(roll_win)]:
-        text_new_rain = Label(x=min_date, y=thresh[str(roll_win)], text="Modified Alarm",render_mode='canvas',level='glyph',x_offset=10,text_font_size='10pt')
+        text_new_rain = Label(x=95, y=thresh[str(roll_win)], x_units='screen', y_units='data', text="Modified Alarm",render_mode='canvas',level='glyph',x_offset=10,text_font_size='10pt')
         p2.add_layout(text_new_rain)
     
+    count = -1
     for input_file in os.listdir(input_dir+ os.sep):
         in_file = input_dir + os.sep + input_file    
         site = input_file.split('_')[1]
-        print input_file
-        df = precip_bin_data.bin_precip(in_file,pbin)
-        #df['tooltip'] = [x.strftime("%Y-%m-%d %H:%M:%S") for x in df['date']]
+        if site in prec_stations:
+            count += 1
+            site_name = precip_names[site]
+            ### check if pickled df already exists
+            if input_file[:-4] + '_' + str(roll_win) in os.listdir(maindir + 'pickle_data' + os.sep + 'historical_precip' + os.sep + pbin + 'min_bin'):
+                print('\nFound pickle df - importing ' + site + '...')
+                print site_name + ' -> ' + input_file[:-4]
+                df = pd.read_pickle(maindir + 'pickle_data' + os.sep + 'historical_precip' + os.sep + pbin + 'min_bin' + os.sep + input_file[:-4]+ '_' + str(roll_win))
+            else:
+                print '\nReading precip raw data file...'
+                print site_name + ' -> ' + input_file
+                df = precip_bin_data.bin_precip(in_file,pbin,header,usecols)
+                #df['tooltip'] = [x.strftime("%Y-%m-%d %H:%M:%S") for x in df['date']]
+            
+                ### use the rolling window calculation to generate precip time series
+                if plot_type == 'rolling':
+                    print("Performing rolling accumulation calculation for window: " + str(roll_win))
+                    df['rolling'] = df.precip.rolling(window=roll_win,freq='min',min_periods=1,closed='right').sum()
         
-        ### use the rolling window calculation to generate precip time series
-        if plot_type == 'rolling':
-            print("Performing rolling accumulation calculation for window: " + str(roll_win))
-            df['rolling'] = df.precip.rolling(window=roll_win,freq='min',min_periods=1,closed='right').sum()
+            ### trim the data to the desired date range
+            df = df[(df.date > min_date) & (df.date < max_date)]
+            
+            # find max precip for plotting limit
+            max_find = []
+            max_find.append(np.nanmax(df.precip))
+            max_Q = int(float(max(max_find))*3)
+            
+            print 'Creating precip bokeh plot...'
         
-        ### trim the data to the desired date range
-        df = df[(df.date > min_date) & (df.date < max_date)]
+            ### add some renderers
+            #p=Area(df, legend="top_right")
+            #glyph = VBar(x='date', top='top', bottom=0, width = 5.5, fill_color="firebrick")
+            #p.add_glyph(ColumnDataSource(dict(date=df['date'],top=df['precip'])), glyph)
+            ###p2.vbar(x=df['date'],width=0, bottom=0,top=df['precip'], color="firebrick")
+            #p=Bar(df, values='precip', legend="top_right")
+            if plot_type == 'rolling':
+                #p2.circle(df['date'], df['rolling'], legend=precip_names[site] + " Accum Precip", fill_color=Set1[len(os.listdir(input_dir+ os.sep))][count], size=5)
+                p2.line(df['date'], df['rolling'], legend=precip_names[site] + " Accum Precip", line_color=Category20[len(prec_stations)+1][count])
+            else:
+                #p2.circle(df['date'], df['precip'], legend=precip_names[site] + " Accum Precip", fill_color=Set1(len(os.listdir(input_dir+ os.sep)))[count], size=5)
+                p2.line(df['date'], df['precip'], legend=precip_names[site] + " Accum Precip", line_color=Category20(len(prec_stations)+1)[count])
         
-        # find max precip for plotting limit
-        max_find = []
-        max_find.append(np.nanmax(df.precip))
-        max_Q = int(float(max(max_find))*3)
-        
-        print 'Creating precip bokeh plot...'
+            #p.circle(date_data, Q_calib, legend="Simulated - SQME", fill_color="red", line_color="red", size=3)
+            #p.line(x, y2, legend="y=10^x^2", line_color="orange", line_dash="4 4")
     
-        ### add some renderers
-        #p=Area(df, legend="top_right")
-        #glyph = VBar(x='date', top='top', bottom=0, width = 5.5, fill_color="firebrick")
-        #p.add_glyph(ColumnDataSource(dict(date=df['date'],top=df['precip'])), glyph)
-        ###p2.vbar(x=df['date'],width=0, bottom=0,top=df['precip'], color="firebrick")
-        #p=Bar(df, values='precip', legend="top_right")
-        if plot_type == 'rolling':
-            p2.circle(df['date'], df['rolling'], legend=precip_names[site] + " Accum Precip", fill_color=Set1[len(os.listdir(input_dir+ os.sep))][count], size=5)
-            p2.line(df['date'], df['rolling'], legend=precip_names[site] + " Accum Precip", line_color=Set1[len(os.listdir(input_dir+ os.sep))][count])
-        else:
-            p2.circle(df['date'], df['precip'], legend=precip_names[site] + " Accum Precip", fill_color=Set1(len(os.listdir(input_dir+ os.sep)))[count], size=5)
-            p2.line(df['date'], df['precip'], legend=precip_names[site] + " Accum Precip", line_color=Set1(len(os.listdir(input_dir+ os.sep)))[count])
-    
-        #p.circle(date_data, Q_calib, legend="Simulated - SQME", fill_color="red", line_color="red", size=3)
-        #p.line(x, y2, legend="y=10^x^2", line_color="orange", line_dash="4 4")
-        count += 1
-        # hover tool
-    #        hover = HoverTool(tooltips=[
-    #                    ("Precip",'@y{0.00} in')],
-    #                    mode='vline') #("Date","@x")],
-    #                    
-    #       p2.add_tools(hover)
-        #p.circle(date_data, discharge, fill_color="white", size=4)
-        p2.toolbar_location = None
-        p2.xaxis.formatter=DatetimeTickFormatter(
-        minsec=["%Y-%m-%d %H:%M:%S"],
-        minutes=["%Y-%m-%d %H:%M"],
-        hourmin=["%Y-%m-%d %H:%M"],
-        hours=["%Y-%m-%d %H:%M"],
-        days=["%Y-%m-%d"],
-        months=["%Y-%m-%d"],
-        years=["%Y-%m"],
-        )
+            # hover tool
+        #        hover = HoverTool(tooltips=[
+        #                    ("Precip",'@y{0.00} in')],
+        #                    mode='vline') #("Date","@x")],
+        #                    
+        #       p2.add_tools(hover)
+            #p.circle(date_data, discharge, fill_color="white", size=4)
+            p2.toolbar_location = None
+            p2.xaxis.formatter=DatetimeTickFormatter(
+            minsec=["%Y-%m-%d %H:%M:%S"],
+            minutes=["%Y-%m-%d %H:%M"],
+            hourmin=["%Y-%m-%d %H:%M"],
+            hours=["%Y-%m-%d %H:%M"],
+            days=["%Y-%m-%d"],
+            months=["%Y-%m-%d"],
+            years=["%Y-%m"],
+            )
         
     s = gridplot([p2],[p1],toolbar_location='right')#column(p2, p1)
     # output to static HTML file

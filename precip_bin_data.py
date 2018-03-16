@@ -6,14 +6,16 @@
 import pandas as pd
 
 
-def bin_precip(input_file,bin_minutes):
+def bin_precip(input_file,bin_minutes,header,usecols):
 #for input_file in os.listdir(input_dir+ os.sep):
     print 'binning precip data: ' + bin_minutes 
     #basin = input_file.split('_')[1]
     #site_num = input_file.split('_')[-4]
     read_file = open(input_file, 'r')
-    data_read = pd.read_csv(read_file,sep=',',skiprows=12,
-                usecols=[1,3],parse_dates=['date'],names=['date', 'precip'])
+    #data_read = pd.read_csv(read_file,sep=',',skiprows=12,
+    #            usecols=[1,3],parse_dates=['date'],names=['date', 'precip'])
+    data_read = pd.read_csv(read_file,sep=',',skiprows=header,
+                usecols=usecols,parse_dates=['date'],names=['date', 'precip'])
                 
    # Convert that column into a datetime datatype
     data_read['date'] = pd.to_datetime(data_read['date'])
