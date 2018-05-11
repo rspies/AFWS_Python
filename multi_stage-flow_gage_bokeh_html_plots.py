@@ -28,9 +28,9 @@ os.chdir("..")
 maindir = os.getcwd() + os.sep + 'data' + os.sep
 pstart = datetime.datetime.now()
 ################## User Input ########################
-min_date = datetime.datetime(2010,9,11,12); max_date = max_date = datetime.datetime(2016,9,15) #datetime.datetime(2017,7,1); min_date = datetime.datetime(2013,1,1)#
-#min_date = datetime.datetime(2013,9,11,12); max_date = max_date = datetime.datetime(2013,9,13)
-basins = ['JamesCreek','SVrainDiv','StVrain_Ward','StVrain','LowerLeftHand'] ## options: 'JamesCreek','SVrainDiv','Rowena','LowerLeftHand','StVrain','StVrain_Ward'
+#min_date = datetime.datetime(2010,9,11,12); max_date = max_date = datetime.datetime(2016,9,15) #datetime.datetime(2017,7,1); min_date = datetime.datetime(2013,1,1)#
+min_date = datetime.datetime(2000,1,1); max_date = max_date = datetime.datetime(2016,10,1)
+basins = ['JamesCreek','SVrainDiv'] ## options: 'JamesCreek','SVrainDiv','Rowena','LowerLeftHand','StVrain','StVrain_Ward'
 flow_stg = 'flow' # choices: 'flow' for streamflow or 'stage' for gauge height
 ######################################################
 if 'StVrain' in basins:
@@ -114,7 +114,7 @@ for basin in basins:
     
     date_data_raw = test['date'].tolist()  # convert to list (indexible)
     discharge_raw = test['OBS'].tolist()
-    read_file.close()
+    #read_file.close()
     
     # find min/max dates
     #max_date = max(date_data_raw);min_date = min(date_data_raw)
